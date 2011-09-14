@@ -18,7 +18,7 @@
 # (C) 2011- by Adam Tauber, <asciimoo@gmail.com>
 
 
-import sys, os
+import sys, os, re
 
 sys.path.append(os.path.abspath(os.path.dirname(__file__)+'/../'))
 os.environ['DJANGO_SETTINGS_MODULE'] = 'f33dme.settings'
@@ -31,6 +31,12 @@ from itertools import imap
 from urllib2 import urlopen
 from hashlib import sha1
 import re
+from lxml.html.clean import Cleaner
+from urlparse import urljoin, urlparse, urlunparse
+from itertools import ifilterfalse, imap
+import urllib
+import tidy
+
 
 bloghu_re = re.compile(r'^http://[a-zA-Z0-9]+\.blog\.hu/')
 bloghu_gen_re = re.compile(r'<generator>[^<]+</generator>')
@@ -45,6 +51,24 @@ def bloghu_parse(feed):
     else:
         feed.etag = hashval
         return parse(content)
+
+cleaner = Cleaner(host_whitelist=['www.youtube.com'])
+
+utmRe=re.compile('utm_(source|medium|campaign|content)=')
+def urlSanitize(url):
+    # removes annoying UTM params to urls.
+    pcs=urlparse(urllib.unquote_plus(url))
+    tmp=list(pcs)
+    tmp[4]='&'.join(ifilterfalse(utmRe.match, pcs.query.split('&')))
+    return urlunparse(tmp)
+
+def clean(txt):
+    return unicode(str(tidy.parseString(txt, **{'output_xhtml' : 1,
+                                                'add_xml_decl' : 0,
+                                                'indent' : 0,
+                                                'tidy_mark' : 0,
+                                                'doctype' : "strict",
+                                                'wrap' : 0})),'utf8')
 
 def fetchFeed(feed):
     counter = 0
@@ -73,16 +97,16 @@ def fetchFeed(feed):
             tmp_date = datetime.now()
         # title content updated
         try:
-            c = unicode(''.join([x.value for x in item.content]))
+            c = cleaner.clean_html(clean(unicode(''.join([x.value for x in item.content]))))
         except:
             c = u'No content found, plz check the feed and fix me =)'
             for key in ['media_text', 'summary', 'description', 'media:description']:
                 if item.has_key(key):
-                    c = unicode(item[key])
+                    c = cleaner.clean_html(clean(unicode(item[key])))
                     break
-        t = unicode(item['title'])
+        t = unicode(item.get('title',''))
         try:
-           u = item['links'][0]['href']
+           u = urlSanitize(item['links'][0]['href'])
         except:
            u = ''
         #if feed.item_set.filter(title=t).filter(content=c).all():
