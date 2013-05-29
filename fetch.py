@@ -93,7 +93,7 @@ def fetchFeed(feed):
         pass
     try:
         feed.modified = datetime(*f.modified[:6])
-    except AttributeError:
+    except (TypeError, AttributeError):
         pass
     d = feed.updated
     for item in reversed(f['entries']):
