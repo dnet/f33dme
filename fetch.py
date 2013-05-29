@@ -38,7 +38,7 @@ import urllib
 import tidy
 
 
-bloghu_re = re.compile(r'^http://[a-zA-Z0-9]+\.blog\.hu/')
+bloghu_re = re.compile(r'^http://[a-zA-Z0-9\-]+\.blog\.hu/')
 bloghu_gen_re = re.compile(r'<generator>[^<]+</generator>')
 empty_feed = dict(entries=[])
 
